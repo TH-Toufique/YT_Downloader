@@ -96,13 +96,28 @@ def get_download_path():
     # Default to Downloads in case of other or unknown OS
     return os.path.expanduser("~/Downloads/")
 
+# Function to convert .webm to .mp4 using ffmpeg and delete the original .webm
+def convert_to_mp4(file_path):
+    mp4_path = file_path.rsplit(".", 1)[0] + ".mp4"
+    try:
+        # Run ffmpeg to convert webm to mp4
+        subprocess.run(["ffmpeg", "-i", file_path, "-c:v", "libx264", "-c:a", "aac", "-strict", "experimental", mp4_path], check=True)
+        print(Fore.GREEN + f"Converted to MP4: {mp4_path}")
+        
+        # Delete the original .webm file after conversion
+        os.remove(file_path)
+        print(Fore.GREEN + f"Deleted original .webm file: {file_path}")
+    except subprocess.CalledProcessError:
+        print(Fore.RED + "Error converting file to MP4.")
+    except OSError as e:
+        print(Fore.RED + f"Error deleting original .webm file: {e}")
+
 # Main download function
 def download_youtube_content():
     if not check_and_install_ffmpeg():
         print(Fore.RED + "FFmpeg installation failed or is unsupported on this OS. Exiting.😰")
-        system.clear()
         return
-
+    
     while True:
         print(Fore.CYAN + "Welcome to YouTube Downloader!")
         print(Fore.GREEN + "Choose an option:")
@@ -136,8 +151,16 @@ def download_youtube_content():
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 print(Fore.GREEN + "Starting download...")
-                ydl.download([url])
+                info_dict = ydl.extract_info(url, download=True)
+                downloaded_file = ydl.prepare_filename(info_dict)
                 print(Fore.GREEN + "Download completed successfully!")
+                
+                # Only prompt for conversion if a video file was downloaded
+                if choice == "2" and downloaded_file.endswith(".webm"):
+                    convert = input(Fore.CYAN + "Convert .webm to .mp4? (y/n): ").strip().lower()
+                    if convert == 'y':
+                        convert_to_mp4(downloaded_file)
+
         except Exception as e:
             print(Fore.RED + f"Error during download: {e}")
 
